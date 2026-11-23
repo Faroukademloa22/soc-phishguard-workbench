@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOC PhishGuard — Friendly Phishing & Landing Page Inspector</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Tesseract.js for Screenshot OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-100/70 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Friendly Clean Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-blue-200">
+          <i data-lucide="shield-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base font-bold text-slate-900">PhishGuard</h1>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-50 text-blue-700 border border-blue-200">SOC Analyst Assistant</span>
+          </div>
+          <p class="text-xs text-slate-500">Fast, visual, and simple email & landing page forensic triage</p>
+        </div>
+      </div>
+
+      <!-- Quick Sample Loader & Actions -->
+      <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-semibold text-slate-600">Try Sample:</span>
+          <select id="sampleSelect" class="bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-800 font-medium rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs cursor-pointer transition shadow-2xs">
+            <option value="">-- Choose a Phishing Scenario --</option>
+            <option value="m365_spoof">Microsoft 365 Login Harvester (Spoofed)</option>
+            <option value="urgency_wire">Urgent CEO Wire Transfer (Display Spoof)</option>
+            <option value="fake_dhl">DHL Tracking Delivery (Malicious Attachment)</option>
+            <option value="clean_mail">Clean Internal Corporate Email (Legitimate)</option>
+          </select>
+        </div>
+
+        <button id="clearAllBtn" class="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg flex items-center space-x-1 transition">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span>Reset</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workstation -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- 1. FRIENDLY INGESTION CARD (Clean & Uncluttered) -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+        <div>
+          <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+            <i data-lucide="inbox" class="w-4 h-4 text-blue-600"></i>
+            <span>Load Suspicious Email to Inspect</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">Choose how you want to input the email (Paste, File, or Screenshot)</p>
+        </div>
+
+        <!-- Ingestion Mode Pills -->
+        <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
+          <button id="tabTextBtn" class="py-1.5 px-3 rounded-lg bg-white text-blue-700 shadow-xs border border-slate-200/60 flex items-center space-x-1.5 transition">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>Paste Text / Headers</span>
+          </button>
+          <button id="tabFileBtn" class="py-1.5 px-3 rounded-lg text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition">
+            <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+            <span>Upload .EML</span>
+          </button>
+          <button id="tabOcrBtn" class="py-1.5 px-3 rounded-lg text-slate-600 hover:text-slate-900 flex items-center space-x-1.5 transition">
+            <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+            <span>Screenshot OCR</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode 1: Paste Text -->
+      <div id="tabTextContent" class="space-y-3">
+        <textarea id="rawInput" rows="5" placeholder="Paste email headers or full email text here, or pick a scenario above...
+
+Example:
+From: &quot;Microsoft Security&quot; &lt;notifications@micros0ft-support.ru&gt;
+Subject: URGENT: 24 Hours Before Account Lockout
+Link: http://185.220.101.5/office365-login/auth.php" class="w-full font-mono text-xs p-3.5 bg-slate-50/80 text-slate-800 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition leading-relaxed"></textarea>
+      </div>
+
+      <!-- Mode 2: File Upload -->
+      <div id="tabFileContent" class="hidden">
+        <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50/60 hover:bg-blue-50/30 rounded-xl p-8 text-center transition cursor-pointer flex flex-col items-center justify-center space-y-2">
+          <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+            <i data-lucide="file-up" class="w-6 h-6"></i>
+          </div>
+          <p class="text-xs font-semibold text-slate-800">Drag & drop your .eml email file here, or click to browse</p>
+          <span class="text-[11px] text-slate-400">Supports .eml, .txt, .msg</span>
+          <input type="file" id="fileInput" accept=".eml,.txt,.msg" class="hidden" />
+          <div id="fileLoadedBadge" class="hidden text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full font-medium flex items-center space-x-1 mt-2">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+            <span id="fileNameDisplay">file.eml loaded</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode 3: Screenshot OCR -->
+      <div id="tabOcrContent" class="hidden">
+        <div id="ocrDropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50/60 hover:bg-indigo-50/30 rounded-xl p-8 text-center transition cursor-pointer flex flex-col items-center justify-center space-y-2">
+          <div class="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <i data-lucide="image" class="w-6 h-6"></i>
+          </div>
+          <p class="text-xs font-semibold text-slate-800">Drop an email screenshot or paste directly with Cmd+V</p>
+          <span class="text-[11px] text-slate-400">Tesseract neural engine automatically reads text from image</span>
+          <input type="file" id="ocrFileInput" accept="image/*" class="hidden" />
+          
+          <div id="ocrProgress" class="hidden w-full max-w-xs space-y-1.5 mt-3">
+            <div class="flex justify-between text-[11px] text-slate-600">
+              <span id="ocrStatusText">Scanning image text...</span>
+              <span id="ocrPercent">0%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div id="ocrBar" class="bg-indigo-600 h-1.5 rounded-full w-0 transition-all duration-200"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <div class="flex justify-end pt-1">
+        <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 px-6 rounded-xl shadow-sm shadow-blue-200 flex items-center space-x-2 transition cursor-pointer">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>Run Phishing Inspection</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. EMPTY STATE (Clean & Calm) -->
+    <div id="emptyState" class="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-3">
+      <div class="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-500">
+        <i data-lucide="mail-search" class="w-7 h-7"></i>
+      </div>
+      <div class="max-w-md">
+        <h3 class="text-sm font-bold text-slate-800">Ready to Analyze</h3>
+        <p class="text-xs text-slate-500 mt-1 leading-relaxed">Select a sample from the top-right dropdown, or paste email content above to see the friendly verdict and live visual landing page preview.</p>
+      </div>
+    </div>
+
+    <!-- 3. POPULATED ANALYSIS RESULTS (Revealed after analysis) -->
+    <div id="analysisConsole" class="hidden space-y-6">
+
+      <!-- A. FRIENDLY HIGH-LEVEL VERDICT CARD -->
+      <div id="verdictBanner" class="rounded-2xl border p-5 shadow-sm bg-white border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-start space-x-4">
+          <div id="verdictIconContainer" class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            <i id="verdictIcon" data-lucide="shield-alert" class="w-7 h-7"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2.5">
+              <h3 id="verdictLabel" class="text-base font-extrabold uppercase tracking-tight">HIGH RISK PHISHING DETECTED</h3>
+              <span id="threatScoreBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold border">Threat Score: 85/100</span>
+            </div>
+            <p id="verdictDescription" class="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-2xl">
+              This email is attempting to steal your credentials by pretending to be Microsoft with deceptive redirect links.
+            </p>
+          </div>
+        </div>
+
+        <button id="copyReportBtn" class="self-start md:self-auto bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold px-3.5 py-2 rounded-xl shadow-2xs flex items-center space-x-2 transition shrink-0 cursor-pointer">
+          <i data-lucide="clipboard-copy" class="w-4 h-4 text-slate-500"></i>
+          <span>Copy Ticket Report</span>
+        </button>
+      </div>
+
+      <!-- B. THREE FRIENDLY KEY TAKEAWAY CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Card 1: Sender & Identity -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+              <i data-lucide="user-x" class="w-4 h-4 text-rose-500"></i>
+              <span>Sender Identity</span>
+            </span>
+            <span id="senderFriendlyBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">FAKE SENDER</span>
+          </div>
+          <div class="text-xs space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div><span class="text-slate-400">Claims to be:</span> <strong id="valDisplayName" class="text-slate-800">Microsoft Security</strong></div>
+            <div><span class="text-slate-400">Actual Email:</span> <span id="valFromAddr" class="font-mono text-slate-700 text-[11px]">notifications@micros0ft.ru</span></div>
+            <div id="spoofWarningNote" class="text-[11px] text-rose-700 font-medium pt-1">⚠️ Display name is spoofed! Domain does not belong to Microsoft.</div>
+          </div>
+        </div>
+
+        <!-- Card 2: Deceptive Links & Buttons -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+              <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-rose-500"></i>
+              <span>Buttons & Links</span>
+            </span>
+            <span id="linksFriendlyBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">DECEPTIVE LINK</span>
+          </div>
+          <div class="text-xs space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div><span class="text-slate-400">Visible Button Text:</span> <span id="valButtonText" class="font-semibold text-slate-800">Verify Identity</span></div>
+            <div><span class="text-slate-400">Real Destination:</span> <span id="valDestLink" class="font-mono text-rose-700 text-[11px] truncate block">hxxp://185.220.101.5/...</span></div>
+            <div class="text-[11px] text-rose-700 font-medium pt-1">⚠️ Button secretly redirects to a malicious credential-stealing site!</div>
+          </div>
+        </div>
+
+        <!-- Card 3: Social Engineering & Pressure -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+              <i data-lucide="flame" class="w-4 h-4 text-amber-500"></i>
+              <span>Urgency & Pressure</span>
+            </span>
+            <span id="urgencyFriendlyBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">CRITICAL PRESSURE</span>
+          </div>
+          <div class="text-xs space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div><span class="text-slate-400">Pressure Tactics:</span> <strong id="urgencySummaryShort" class="text-slate-800">Account Termination</strong></div>
+            <div id="friendlyTriggersPills" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- Rendered pills -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- C. THE REQUESTED FEATURE: VISUAL PHISHING LANDING PAGE PREVIEW -->
+      <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        
+        <!-- Header of the Browser Inspector -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <i data-lucide="monitor" class="w-4 h-4 text-blue-600"></i>
+              <span>Phishing Landing Page Preview (Sandboxed View)</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">Visual representation of what the victim sees when clicking the email link or opening the attachment.</p>
+          </div>
+
+          <span id="landingPageRiskBadge" class="self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center space-x-1.5">
+            <i data-lucide="alert-octagon" class="w-3.5 h-3.5 text-rose-600"></i>
+            <span id="landingPageRiskText">Malicious Credential Harvester Clone</span>
+          </span>
+        </div>
+
+        <!-- MOCK BROWSER CHROME FRAME -->
+        <div class="p-4 bg-slate-100/60">
+          <div class="bg-white rounded-xl border border-slate-300 shadow-md overflow-hidden">
+            
+            <!-- macOS / Browser Title Bar -->
+            <div class="bg-slate-200/90 border-b border-slate-300 px-4 py-2.5 flex items-center space-x-3">
+              <!-- Window controls -->
+              <div class="flex items-center space-x-1.5">
+                <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-amber-400 inline-block"></span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+              </div>
+
+              <!-- Address bar -->
+              <div class="flex-1 max-w-2xl bg-white border border-slate-300 rounded-lg px-3 py-1 flex items-center space-x-2 text-xs font-mono shadow-2xs">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-600 shrink-0"></i>
+                <span id="browserAddressBar" class="text-rose-700 font-semibold truncate flex-1">hxxp://185.220.101.5/office365-login/auth.php</span>
+                <span class="text-[10px] bg-rose-50 text-rose-600 font-sans font-bold px-1.5 py-0.5 rounded border border-rose-200 shrink-0">NOT SECURE (HTTP)</span>
+              </div>
+            </div>
+
+            <!-- SANDBOXED PAGE CONTENT CANVAS -->
+            <div id="landingPageCanvas" class="p-8 min-h-[360px] flex items-center justify-center bg-slate-50 relative overflow-hidden">
+              <!-- Dynamically populated landing page mockup -->
+            </div>
+
+            <!-- Analyst Explanatory Overlay Footer -->
+            <div class="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-slate-600 gap-2">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="info" class="w-4 h-4 text-blue-500 shrink-0"></i>
+                <span id="landingPageExplanation">This cloned login form mimics the Microsoft 365 sign-in dialog to harvest corporate usernames and passwords.</span>
+              </div>
+              <span class="text-[11px] font-mono text-slate-400">Sandbox Isolation: Safe Mockup</span>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- D. DEEP FORENSIC DETAILS (Tabbed for cleanliness) -->
+      <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        <!-- Toggle Tabs -->
+        <div class="border-b border-slate-200 bg-slate-50 p-1 flex overflow-x-auto text-xs font-semibold">
+          <button id="resTabGeo" class="px-4 py-2 rounded-xl flex items-center space-x-1.5 bg-white text-blue-700 shadow-xs border border-slate-200 transition shrink-0">
+            <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+            <span>Sender Geolocation & Map</span>
+          </button>
+          <button id="resTabLinks" class="px-4 py-2 rounded-xl flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition shrink-0">
+            <i data-lucide="link" class="w-3.5 h-3.5"></i>
+            <span>All Extracted Links (<span id="linksCountBadge">0</span>)</span>
+          </button>
+          <button id="resTabAttach" class="px-4 py-2 rounded-xl flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition shrink-0">
+            <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+            <span>Attachments & Files (<span id="attachCountBadge">0</span>)</span>
+          </button>
+          <button id="resTabTech" class="px-4 py-2 rounded-xl flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition shrink-0">
+            <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+            <span>Technical Headers (SPF/DKIM/DMARC)</span>
+          </button>
+        </div>
+
+        <!-- Sub-Panel 1: Geolocation -->
+        <div id="resPanelGeo" class="p-5 space-y-4">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span class="text-slate-400 text-[11px] block">Originating IP</span>
+              <strong id="geoIpBadge" class="font-mono text-slate-800 mt-0.5 block">185.220.101.5</strong>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span class="text-slate-400 text-[11px] block">Country & City</span>
+              <span id="geoCountryName" class="font-semibold text-slate-800 mt-0.5 block">Russia (Moscow)</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span class="text-slate-400 text-[11px] block">Coordinates</span>
+              <span id="geoCoordinates" class="font-mono font-semibold text-slate-800 mt-0.5 block">55.7558, 37.6173</span>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <span class="text-slate-400 text-[11px] block">Host Provider / ISP</span>
+              <span id="geoIsp" class="font-medium text-slate-800 text-[11px] truncate mt-0.5 block">Hostkey B.V.</span>
+            </div>
+          </div>
+          <!-- Leaflet Map -->
+          <div class="rounded-xl overflow-hidden border border-slate-200 h-52 w-full bg-slate-100">
+            <div id="leafletMap" class="h-full w-full"></div>
+          </div>
+        </div>
+
+        <!-- Sub-Panel 2: Links Table -->
+        <div id="resPanelLinks" class="hidden p-5">
+          <div class="border border-slate-200 rounded-xl overflow-hidden">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold text-[11px] uppercase">
+                <tr>
+                  <th class="p-3">Type</th>
+                  <th class="p-3">Visible Anchor Text</th>
+                  <th class="p-3">Destination (Defanged)</th>
+                  <th class="p-3 text-right">Verdict</th>
+                </tr>
+              </thead>
+              <tbody id="linksTableBody" class="divide-y divide-slate-200">
+                <!-- Links table rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sub-Panel 3: Attachments -->
+        <div id="resPanelAttach" class="hidden p-5 space-y-3">
+          <div id="attachmentsContainer" class="space-y-3">
+            <!-- Attachments populated here -->
+          </div>
+        </div>
+
+        <!-- Sub-Panel 4: Technical Headers -->
+        <div id="resPanelTech" class="hidden p-5 space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="border rounded-xl p-3 bg-slate-50">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800">SPF</span>
+                <span id="spfBadge" class="text-[11px] font-bold px-2 py-0.5 rounded border">FAIL</span>
+              </div>
+              <p id="spfDetail" class="text-[11px] text-slate-500 mt-1">Sender IP not permitted by domain policy.</p>
+            </div>
+            <div class="border rounded-xl p-3 bg-slate-50">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800">DKIM</span>
+                <span id="dkimBadge" class="text-[11px] font-bold px-2 py-0.5 rounded border">FAIL</span>
+              </div>
+              <p id="dkimDetail" class="text-[11px] text-slate-500 mt-1">Cryptographic signature invalid.</p>
+            </div>
+            <div class="border rounded-xl p-3 bg-slate-50">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800">DMARC</span>
+                <span id="dmarcBadge" class="text-[11px] font-bold px-2 py-0.5 rounded border">FAIL</span>
+              </div>
+              <p id="dmarcDetail" class="text-[11px] text-slate-500 mt-1">Domain policy failed.</p>
+            </div>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1">
+            <div><span class="text-slate-400">Subject:</span> <span id="valSubject" class="font-semibold text-slate-900 ml-1">-</span></div>
+            <div><span class="text-slate-400">Date:</span> <span id="valDate" class="font-mono text-slate-700 ml-1">-</span></div>
+            <div><span class="text-slate-400">Message-ID:</span> <span id="valMsgId" class="font-mono text-slate-500 text-[11px] ml-1">-</span></div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- Incident Report Modal / Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg flex items-center space-x-2 transition-all duration-300 transform translate-y-12 opacity-0 z-50 pointer-events-none">
+    <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">Report copied to clipboard!</span>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/samples.js"></script>
+  <script src="js/geo.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/linkDetector.js"></script>
+  <script src="js/urgencyScorer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

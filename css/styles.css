@@ -1,0 +1,50 @@
+/* Custom refinements for Light Enterprise Theme */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+}
+
+/* Custom scrollbars for analyst terminals */
+textarea::-webkit-scrollbar,
+div::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+textarea::-webkit-scrollbar-track,
+div::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+textarea::-webkit-scrollbar-thumb,
+div::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover,
+div::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Leaflet map container fix */
+.leaflet-container {
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* Highlighted urgency text in body preview */
+mark.urgency-highlight {
+  background-color: #fee2e2;
+  color: #991b1b;
+  font-weight: 600;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  border: 1px solid #fecaca;
+}
+
+/* Drag & Drop Highlight */
+.drag-over {
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+}

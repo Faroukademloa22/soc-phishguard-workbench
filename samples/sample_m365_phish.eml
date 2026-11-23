@@ -1,0 +1,25 @@
+Received: from mail-router12.evil-relay.net (mail-router12.evil-relay.net [185.220.101.5])
+	by mx.company.com (Postfix) with ESMTPS id 4SlKq71239
+	for <analyst@company.com>; Mon, 23 Nov 2026 14:22:15 +0000 (UTC)
+Authentication-Results: mx.company.com;
+	dkim=fail (bad signature) header.d=micros0ft-support.ru;
+	spf=fail (mx.company.com: domain of bounce@evil-relay.net does not designate 185.220.101.5 as permitted sender);
+	dmarc=fail (p=REJECT dis=NONE) header.from=microsoft.com
+From: "Microsoft Security Alert" <notifications@micros0ft-support.ru>
+Reply-To: credential-collector@temp-box.xyz
+Return-Path: <bounce@evil-relay.net>
+To: "SOC Team" <analyst@company.com>
+Subject: CRITICAL: Immediate Password Expiration - 24 Hours Before Termination
+Date: Mon, 23 Nov 2026 14:21:40 +0000
+Message-ID: <20261123142140.84920.phish@micros0ft-support.ru>
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+X-Originating-IP: [185.220.101.5]
+
+<html>
+<body>
+  <h2>Urgent: Action Required on Your Corporate Account</h2>
+  <p>Your Microsoft 365 access password is scheduled for immediate termination within the next 24 hours.</p>
+  <p><a href="http://185.220.101.5/office365-login/auth.php">https://login.microsoftonline.com/common/oauth2/authorize</a></p>
+</body>
+</html>
