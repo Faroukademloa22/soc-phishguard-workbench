@@ -1,6 +1,13 @@
+// Safe helper for Lucide icons
+function safeCreateIcons() {
+  if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
+    try { lucide.createIcons(); } catch (e) { /* ignore */ }
+  }
+}
+
 // Main Application Controller & UI Logic (Friendly Version with Landing Page Preview)
 document.addEventListener('DOMContentLoaded', () => {
-  lucide.createIcons();
+  safeCreateIcons();
 
   // Ingestion Mode Switching
   const tabTextBtn = document.getElementById('tabTextBtn');
@@ -57,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tabOcrBtn.className = "py-1.5 px-3 rounded-lg bg-white text-blue-700 shadow-xs border border-slate-200/60 flex items-center space-x-1.5 transition";
       tabOcrContent.classList.remove('hidden');
     }
-    lucide.createIcons();
+    safeCreateIcons();
   }
 
   tabTextBtn.addEventListener('click', () => setInputTab('text'));
@@ -79,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (GeoEngine.mapInstance) GeoEngine.mapInstance.invalidateSize();
         }, 150);
       }
-      lucide.createIcons();
+      safeCreateIcons();
     });
   });
 
@@ -116,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
       rawInput.value = evt.target.result;
       fileNameDisplay.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
       fileLoadedBadge.classList.remove('hidden');
-      lucide.createIcons();
+      safeCreateIcons();
       runAnalysis();
     };
     reader.readAsText(file);
@@ -322,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- COMPOSITE THREAT VERDICT ---
     computeOverallVerdict(parsed, links, urgency, isDisplaySpoof);
 
-    lucide.createIcons();
+    safeCreateIcons();
   }
 
   // 8. RENDER PHISHING LANDING PAGE VISUAL PREVIEW
@@ -459,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
 
-    lucide.createIcons();
+    safeCreateIcons();
   }
 
   function renderAuthCard(type, data) {
